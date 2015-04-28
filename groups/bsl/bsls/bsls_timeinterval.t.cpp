@@ -1071,122 +1071,6 @@ int ByteOutStream::length() const
 
 typedef ByteOutStream Out;
 
-                         // ================
-                         // class TestStream
-                         // ================
-
-class TestStream {
-    // This class provides a test stream on which one may call 'operator<<'
-    // for integers and 'const char *'
-
-  public:
-    // PUBLIC CONSTANTS
-    static const int k_CAPACITY = 512;
-
-  private:
-
-    // DATA
-    char  d_buffer[k_CAPACITY];  // character buffer
-    int   d_length;              // number of characters added to d_buffer
-
-    // NOT IMPLEMENTED
-    TestStream(const TestStream&);
-    TestStream& operator=(const TestStream&);
-  public:
-
-    // CREATORS
-    TestStream();
-        // Construct a test stream with an empty buffer.
-
-//    ~TestStream();
-//      // Destroy this test stream.  Note that this operation is supplied by
-//      // the compiler.
-
-    // MANIPULATORS
-    TestStream& operator<<(const char *value);
-        // Stream the specified 'value' into this buffer.
-
-    TestStream& operator<<(bsls::Types::Int64 value);
-        // Stream the specified 'value' into this buffer.
-
-    TestStream& operator<<(int value);
-        // Stream the specified 'value' into this buffer.
-
-    TestStream& operator<<(char value);
-        // Stream the specified 'value' into this buffer.
-
-    // ACCESSORS
-    int length() const;
-        // Return the length of 'stringValue'.
-
-    const char *stringValue() const;
-        // Return a 0 terminated C-string of the values streamed into this
-        // 'TestStream'.
-};
-
-// CREATORS
-TestStream::TestStream()
-: d_length(0)
-{
-    memset(d_buffer, 0, k_CAPACITY);
-}
-
-// MANIPULATORS
-TestStream& TestStream::operator<<(const char *value)
-{
-    char *next              = d_buffer + d_length;
-    int   remainingCapacity = k_CAPACITY - d_length;  // w/ 0 terminator
-
-    int written = snprintf(next, remainingCapacity, "%s", value);
-
-    if (written < 0 || written > remainingCapacity) {
-        BSLS_ASSERT_OPT(false && "Invalid streaming operation on TestStream");
-        return *this;                                                 // RETURN
-    }
-    d_length += written;
-
-    return *this;
-}
-
-TestStream& TestStream::operator<<(bsls::Types::Int64 value)
-{
-    char *next              = d_buffer + d_length;
-    int   remainingCapacity = k_CAPACITY - d_length;  // w/ 0 terminator
-
-    int written = snprintf(next, remainingCapacity, "%lld", value);
-
-    if (written < 0 || written > remainingCapacity) {
-        BSLS_ASSERT_OPT(false && "Invalid streaming operation on TestStream");
-        return *this;                                                 // RETURN
-    }
-    d_length += written;
-
-    return *this;
-}
-
-TestStream& TestStream::operator<<(int value)
-{
-
-    return (*this) << static_cast<bsls::Types::Int64>(value);
-}
-
-TestStream& TestStream::operator<<(char value)
-{
-    char buffer[] = { value, 0 };
-    return (*this) << buffer;
-}
-
-// ACCESSORS
-int TestStream::length() const
-{
-    return d_length;
-}
-
-const char *TestStream::stringValue() const
-{
-    return d_buffer;
-}
-
 //=============================================================================
 //                              MAIN PROGRAM
 //-----------------------------------------------------------------------------
@@ -5899,6 +5783,7 @@ int main(int argc, char *argv[])
         }
       } break;
       case 5: {
+#if 0
         // --------------------------------------------------------------------
         // PRINT AND OUTPUT OPERATOR (<<)
         //   Ensure that the value of the object can be formatted appropriately
@@ -5977,8 +5862,8 @@ int main(int argc, char *argv[])
                              "the output 'operator<<' to variables.\n");
         {
 
-            typedef TestStream& (Obj::*funcPtr)(TestStream&, int, int) const;
-            typedef TestStream& (*operatorPtr)(TestStream&, const Obj&);
+            typedef native_std::ostream& (Obj::*funcPtr)(native_std::ostream&, int, int) const;
+            typedef native_std::ostream& (*operatorPtr)(native_std::ostream&, const Obj&);
 
             // Verify that the signatures and return types are standard.
 
@@ -6172,6 +6057,7 @@ int main(int argc, char *argv[])
                 }
             }
         }
+#endif
       } break;
       case 4: {
         // --------------------------------------------------------------------
@@ -6248,6 +6134,7 @@ int main(int argc, char *argv[])
         }
       } break;
       case 3: {
+#if 0
         // --------------------------------------------------------------------
         // TESTING TEST-DRIVER MACHINERY
         //   Test the test-driver machinery used in this test-driver
@@ -6378,6 +6265,7 @@ int main(int argc, char *argv[])
 
             if (veryVerbose) { T_; P(X.stringValue()); }
         };
+#endif
       } break;
       case 2: {
         // --------------------------------------------------------------------
