@@ -2,9 +2,16 @@
 
 #include <bsls_timeinterval.h>
 
-#include <bsls_asserttest.h>   // for testing only
-#include <bsls_bsltestutil.h>  // for testing only
+#include <bsls_assert.h>
+#include <bsls_asserttest.h>
+#include <bsls_bsltestutil.h>
+#include <bsls_nativestd.h>
 #include <bsls_platform.h>
+
+#include <iostream>
+#include <iterator>
+#include <sstream>
+#include <string>
 
 #include <limits.h>  // LLONG_MAX
 #include <math.h>    // fabs
@@ -125,7 +132,7 @@ using namespace std;
 // [15] bool operator<=(const TimeInterval&, const TimeInterval&);
 // [15] bool operator<=(const TimeInterval&, double);
 // [15] bool operator>=(double, const TimeInterval&);
-// [ 5] STREAM& operator<<(STREAM&, const TimeInterval&);
+// [ 5] ostream& operator<<(ostream&, const TimeInterval&);
 // ----------------------------------------------------------------------------
 // [ 1] BREATHING TEST
 // [ 3] TESTING TEST-DRIVER MACHINERY
@@ -222,8 +229,172 @@ const int k_BDEX_SIZEOF_INT32 = 4;
 const int k_BDEX_SIZEOF_INT64 = 8;
 
 //=============================================================================
-//                      HELPER FUNCTIONS FOR TESTING
+//                        HELPER CLASSES FOR TESTING
 //-----------------------------------------------------------------------------
+
+namespace outputSuppression {
+
+struct Guard                  {
+    native_std::stringstream  redirect;
+    native_std::streambuf    *originalBuffer;
+
+    Guard();
+
+    ~Guard();
+};
+
+Guard::Guard() : originalBuffer(native_std::cout.rdbuf())
+{
+    native_std::cout.rdbuf(redirect.rdbuf());
+}
+
+Guard::~Guard() {
+    native_std::cout.rdbuf(originalBuffer);
+}
+
+}  // close namespace outputSuppression
+
+//-----------------------------------------------------------------------------
+//                     GTEST UNIVERSAL PRINT SIMULATION
+//-----------------------------------------------------------------------------
+
+namespace testharness {
+namespace detail {
+
+template <typename Streamable>
+native_std::ostream& operator<<(native_std::ostream&     stream,
+                                const Streamable& object);
+    // Print a representation of the specified 'object' to the specified
+    // 'stream'.
+
+}  // close namespace detail
+
+template <typename Object>
+void print(const Object& object, native_std::ostream& stream);
+    // Print a representation of the specified 'object' to the specified
+    // 'stream'.
+
+}  // close namespace testharness
+
+namespace library {
+
+struct NonStreamingType {
+    int d_x;
+};
+
+struct StreamingType {
+    int d_x;
+};
+
+native_std::ostream& operator<<(native_std::ostream& stream,
+                                const StreamingType& object);
+    // Print to the specified 'stream' the value of "x" for the specified
+    // 'object'.
+
+}  // close namespace library
+
+template <typename Streamable>
+native_std::ostream& testharness::detail::operator<<(
+                                                  native_std::ostream&  stream,
+                                                  const Streamable&     object)
+{
+    struct aux {
+        static void printString(native_std::ostream&       stream,
+                                const native_std::string&  s     )
+        {
+            native_std::copy(s.begin(),
+                      s.end(),
+                      native_std::ostream_iterator<char>(stream));
+        }
+    };
+
+    aux::printString(stream, "[Object at ");
+    const void *address = &object;
+    stream << address;
+    aux::printString(stream, ": ");
+    stream << sizeof object;
+    aux::printString(stream, " bytes]");
+
+    return stream;
+}
+
+template <typename Object>
+void testharness::print(const Object& object, native_std::ostream& stream)
+{
+    using testharness::detail::operator<<;
+
+    stream << object;
+}
+
+native_std::ostream& library::operator<<(native_std::ostream&           stream,
+                                         const library::StreamingType&  object)
+{
+    return stream << object.d_x;
+}
+
+//-----------------------------------------------------------------------------
+//                           LOG RECORD SIMULATION
+//-----------------------------------------------------------------------------
+
+namespace logger {
+
+struct Stream {
+    int d_count;
+
+    Stream() : d_count(0) {}
+};
+
+template <typename Streamable>
+Stream& operator<<(Stream&           stream,
+                   const Streamable& object);
+
+}  // close namespace logger
+
+namespace application {
+
+struct StreamableType {
+    int d_x;
+};
+
+native_std::ostream& operator<<(native_std::ostream&  stream,
+                                const StreamableType& object);
+    // Print to the specified 'stream' the value of "x" for the specified
+    // 'object'.
+
+logger::Stream& operator<<(logger::Stream&        stream,
+                           const StreamableType&  object);
+
+}  // close namespace application
+
+template <typename Streamable>
+logger::Stream& logger::operator<<(logger::Stream&    stream,
+                                   const Streamable&  /* object */)
+{
+    ++stream.d_count;
+
+    return stream;
+}
+
+native_std::ostream& application::operator<<(
+                                    native_std::ostream&                stream,
+                                    const application::StreamableType&  object)
+{
+    return stream << object.d_x;
+}
+
+logger::Stream& application::operator<<(
+                                    logger::Stream&                     stream,
+                                    const application::StreamableType&  object)
+{
+    stream.d_count += object.d_x;
+
+    return stream;
+}
+
+//-----------------------------------------------------------------------------
+//                           BSLS_TESTUTIL SUPPORT
+//-----------------------------------------------------------------------------
+
 
 namespace BloombergLP {
 namespace bsls {
@@ -1033,7 +1204,7 @@ int main(int argc, char *argv[])
     printf("TEST " __FILE__ " CASE %d\n", test);
 
     switch (test) { case 0:
-      case 23: {
+      case 24: {
         // --------------------------------------------------------------------
         // USAGE EXAMPLE
         //   Extracted from component header file.
@@ -1103,6 +1274,84 @@ int main(int argc, char *argv[])
 //..
 
         }
+      } break;
+      case 23: {
+        // --------------------------------------------------------------------
+        // TESTING: DRQS 65043434
+        //
+        // Concerns:
+        //
+        // Plan:
+        //
+        // Testing:
+        //   CONCERN: DRQS 65043434
+        // --------------------------------------------------------------------
+
+        if (verbose) printf("\nTESTING: DRQS 65043434"
+                            "\n======================\n");
+
+
+        if (verbose) printf("\nSimulating GTest Universal Printer\n");
+        {
+            outputSuppression::Guard outputSuppressionGuard;
+
+            using native_std::cout;
+            using native_std::endl;
+
+            library::NonStreamingType a = { 42 };
+            library::StreamingType    b = { 7 };
+            bsls::TimeInterval        interval;
+
+            // Printing with 'print'
+
+            testharness::print(a, cout);
+            cout << endl;
+
+            testharness::print(b, cout);
+            cout << endl;
+
+            testharness::print(interval, cout);
+            cout << endl;
+
+            // Printing with 'operator<<'
+
+            // Should not compile:
+            // cout << a << endl;
+
+            cout << b << endl;
+
+            cout << interval << endl;
+        }
+
+        if (verbose) printf("\nSimulating Logger\n");
+        {
+            outputSuppression::Guard outputSuppressionGuard;
+
+            using native_std::cout;
+            using native_std::endl;
+
+            application::StreamableType b = { 7 };
+            bsls::TimeInterval          interval;
+
+            // Streaming to ostream
+
+            cout << b << endl;
+
+            cout << interval << endl;
+
+            // Streaming to logger::Stream
+
+            logger::Stream stream;
+
+            ASSERTV(stream.d_count, 0 == stream.d_count);
+            stream << b;
+            ASSERTV(stream.d_count, 7 == stream.d_count);
+
+            ASSERTV(stream.d_count, 7 == stream.d_count);
+            stream << interval;
+            ASSERTV(stream.d_count, 8 == stream.d_count);
+        }
+
       } break;
       case 22: {
         // --------------------------------------------------------------------
@@ -5764,7 +6013,7 @@ int main(int argc, char *argv[])
         { L_,  0,  0,      0,      0,  "(0, 0)"              NL },
         { L_,  0,  1,      0,      0,  "(0, 0)"              NL },
         { L_,  0, -1,      0,      0,  "(0, 0)"                 },
-        { L_,  0, -8,      0,      0,  "(0, 0)"                 },
+        { L_,  0,  4,      0,      0,  "(0, 0)"              NL },
 
         // ------------------------------------------------------------------
         // P-2.1.2: { A } x { 3, -3 } x { 0, 2, -2, -8 } -->  6 expected o/ps
@@ -5775,12 +6024,11 @@ int main(int argc, char *argv[])
         { L_,  3,  0,      0,      0,  "(0, 0)"              NL },
         { L_,  3,  2,      0,      0,  "      (0, 0)"        NL },
         { L_,  3, -2,      0,      0,  "      (0, 0)"           },
-        { L_,  3, -8,      0,      0,
-                     "                        (0, 0)"           },
+        { L_,  3,  4,      0,      0,  "            (0, 0)"  NL },
         { L_, -3,  0,      0,      0,  "(0, 0)"              NL },
         { L_, -3,  2,      0,      0,  "(0, 0)"              NL },
         { L_, -3, -2,      0,      0,  "(0, 0)"                 },
-        { L_, -3, -8,      0,      0,  "(0, 0)"                 },
+        { L_, -3,  4,      0,      0,  "(0, 0)"              NL },
 
         // -----------------------------------------------------------------
         // P-2.1.3: { B } x { 2 }     x { 3 }            -->  1 expected o/p
@@ -5797,8 +6045,8 @@ int main(int argc, char *argv[])
 
         //LINE L SPL       S       Ns   EXP
         //---- - ---       -       --   ---
-        { L_, -8, -8,      0,      0,  "(0, 0)"                 },
-        { L_, -8, -8,   -123,  -5000,  "(-123, -5000)"          },
+        { L_,  0,  4,      0,      0,  "(0, 0)"              NL },
+        { L_,  0,  4,   -123,  -5000,  "(-123, -5000)"       NL },
 
         // -----------------------------------------------------------------
         // P-2.1.5: { A B } x { -9 }   x { -9 }         -->  2 expected o/ps
@@ -5806,8 +6054,8 @@ int main(int argc, char *argv[])
 
         //LINE L SPL       S       Ns   EXP
         //---- - ---       -       --   ---
-        { L_, -9, -9,      0,      0,  "(0, 0)"                 },
-        { L_, -9, -9,   -123,  -5000,  "(-123, -5000)"          },
+        { L_,  0, -1,      0,      0,  "(0, 0)"                 },
+        { L_,  0, -1,   -123,  -5000,  "(-123, -5000)"          },
 
 #undef NL
 
@@ -5871,6 +6119,7 @@ int main(int argc, char *argv[])
                 }
             }
         }
+
         if (verbose) printf("\nTesting 'operator<<' (ostream).\n");
         {
             static const struct {
@@ -5884,6 +6133,7 @@ int main(int argc, char *argv[])
                 { L_,             0,          0, "(0, 0)"                    },
                 { L_,             0,        100, "(0, 100)"                  },
                 { L_,             0,       -100, "(0, -100)"                 },
+                { L_,          -123,      -5000, "(-123, -5000)"             },
                 { L_,  3000000000LL,  999999999, "(3000000000, 999999999)"   },
                 { L_, -3000000000LL, -999999999, "(-3000000000, -999999999)" }
             };
