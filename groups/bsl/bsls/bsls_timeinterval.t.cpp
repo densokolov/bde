@@ -8,6 +8,7 @@
 #include <bsls_nativestd.h>
 #include <bsls_platform.h>
 
+#include <algorithm>
 #include <iostream>
 #include <iterator>
 #include <sstream>
