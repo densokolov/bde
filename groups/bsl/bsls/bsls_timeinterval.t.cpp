@@ -6046,7 +6046,8 @@ int main(int argc, char *argv[])
 
                 OStream *mR = &(out << X);
 
-                const char *RESULT = out.str().c_str();
+                const native_std::string RESULT_STRING = out.str();
+                const char *RESULT = RESULT_STRING.c_str();
 
                 if (veryVerbose) { T_; P_(EXPECTED); P(RESULT); }
 
@@ -6056,11 +6057,14 @@ int main(int argc, char *argv[])
 
                 // Compare with 'print(stream, 0, -1)
                 {
-                    OSStream expected;
+                    OSStream printResult;
+                    const native_std::string PRINT_RESULT_STRING = out.str();
+                    const char *PRINT_RESULT = PRINT_RESULT_STRING.c_str();
 
-                    X.print(expected, 0, -1);
+                    X.print(printResult, 0, -1);
 
-                    ASSERTV(LINE, 0 == strcmp(expected.str().c_str(), RESULT));
+                    ASSERTV(LINE, PRINT_RESULT, RESULT,
+                                            0 == strcmp(PRINT_RESULT, RESULT));
                 }
             }
         }
