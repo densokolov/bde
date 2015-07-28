@@ -261,6 +261,10 @@ int main(int argc, char *argv[])
     bool     veryVeryVerbose = argc > 4;
     bool veryVeryVeryVerbose = argc > 5;
 
+    (void)         veryVerbose;
+    (void)     veryVeryVerbose;
+    (void) veryVeryVeryVerbose;
+
     cout << "TEST " << __FILE__ << " CASE " << test << endl;
 
     // CONCERN: In no case does memory come from the global allocator.
@@ -318,7 +322,7 @@ int main(int argc, char *argv[])
       } break;
       case 6: {
         // --------------------------------------------------------------------
-        // TESTING QoI: 'CStringHash' IS AN EMPTY TYPE
+        // TESTING QOI: 'CStringHash' IS AN EMPTY TYPE
         //   As a quality of implementation issue, the class has no state and
         //   should support the use of the empty base class optimization on
         //   compilers that support it.
